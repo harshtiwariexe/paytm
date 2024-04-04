@@ -2,67 +2,68 @@ const express = require('express');
 const User = require('./../Model/userModel');
 const zod = require('zod');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const {authMiddleware} = require('./../Controller/authController')
+
 
 const Router = express.Router();
 
 const signupSchema = zod.object({
-    username: zod.string(),
+    email: zod.string(),
     password: zod.string(),
     firstName: zod.string(),
     lastName: zod.string()
 });
 const signinSchema = zod.object({
-    username:zod.string(),
+    email:zod.string(),
     password:zod.string()
 })
+const updateSchema = zod.object({
+    password:zod.string(),
+    firstName:zod.string(),
+    lastName:zod.string()
+})
 
-Router.post('/signup', async (req, res) => {
-    const { username, password, firstName, lastName } = req.body;
-
-    const { success } = signupSchema.safeParse(req.body);
+Router.post("/signup", async (req, res) => {    
+    const { success } = signupSchema.safeParse(req.body)
     if (!success) {
-        return res.status(401).json({
-            status: "Failed",
-            message: "Incorrect Credentials"
-        });
+        return res.status(411).json({
+            message: "Email already taken / Incorrect inputs"
+        })
     }
 
-    try {
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(401).json({
-                status: "Failed",
-                message: "User already exists"
-            });
+    const existingUser = await User.findOne({
+        email: req.body.email
+    })
+
+    if (existingUser) {
+        return res.status(411).json({
+            message: "Email already taken/Incorrect inputs"
+        })
+    }
+
+    const user = await User.create({
+        email: req.body.email,
+        password: req.body.password,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+    })
+    const userId = user._id;
+
+    const token = jwt.sign({
+        userId
+    }, process.env.JWT_SECRET);
+
+    res.json({
+        message: "User created successfully",
+        token: token,
+        data:{
+            user
         }
+    })
+})
 
-        const newUser = await User.create({
-            username,
-            password,
-            firstName,
-            lastName
-        });
-
-        const token = jwt.sign({
-            userId: newUser._id
-        }, process.env.JWT_SECRET);
-
-        res.status(200).json({
-            status: "success",
-            token,
-        });
-    } catch (error) {
-        console.error("Error in signup:", error);
-        res.status(500).json({
-            status: "Failed",
-            message: "Internal server error"
-        });
-    }
-});
-
-Router.post('/signin', async (req, res) => {
-    const { username, password } = req.body;
+Router.post('/login', async (req, res) => {
+    const { email, password } = req.body;
     const {success} = signinSchema.safeParse(req.body)
     if (!success) {
         return res.status(411).json({
@@ -71,7 +72,7 @@ Router.post('/signin', async (req, res) => {
     }
 
     try {
-        const user = await User.findOne({ username }).select('+password');
+        const user = await User.findOne({ email }).select('+password');
 
         if (!user) {
             return res.status(401).json({
@@ -101,5 +102,21 @@ Router.post('/signin', async (req, res) => {
         });
     }
 });
+Router.post('/update',authMiddleware,async(req,res)=>{
+    const {password,firstName,lastName} = req.body
+    const { success } = updateSchema.safeParse(req.body)
+    if(!success){
+        res.status(403).send({
+            status:"Failed",
+            message:"Invalid Input"
+        })
+    }
+    await User.findOneAndUpdate({_id:req.userId},req.body)
+    res.status(200).json({
+        status:"Success",
+        message:"Updated successfully"
+    })
+
+})
 
 module.exports = Router;

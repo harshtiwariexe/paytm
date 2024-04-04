@@ -13,11 +13,16 @@ app.use(express.json())
 app.use('/api/v1/',Router);    
 //////////// SERVER ////////////////////////
 
-mongoose.connect(process.env.DB).then(()=>{
-    console.log("Database connected");
-}).catch(err=>{
-    console.log(err);
+mongoose.connect(process.env.DB,{
+    useNewUrlParser: true, 
+    useUnifiedTopology: true,
+    family: 4,
+}).then(()=>{
+    console.log("Database Connection Successful....");
+}).catch(e=>{
+    console.log(e);
 })
+
 
 app.listen('3000',()=>{
     console.log("Server running on port 3000");
