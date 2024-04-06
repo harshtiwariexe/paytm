@@ -25,4 +25,4 @@ if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
         })
     }
 }
-module.exports = {authMiddleware}
+module.exports = authMiddleware

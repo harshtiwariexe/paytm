@@ -13,12 +13,12 @@ app.use(express.json())
 app.use('/api/v1/',Router);    
 //////////// SERVER ////////////////////////
 
-mongoose.connect(process.env.DB,{
+mongoose.connect("mongodb://localhost:27017/paytm",{
     useNewUrlParser: true, 
     useUnifiedTopology: true,
     family: 4,
 }).then(()=>{
-    console.log("Database Connection Successful....");
+    console.log("Local Database Connection Successful....");
 }).catch(e=>{
     console.log(e);
 })

@@ -2,7 +2,8 @@ const express = require('express');
 const User = require('./../Model/userModel');
 const zod = require('zod');
 const jwt = require('jsonwebtoken');
-const {authMiddleware} = require('./../Controller/authController')
+const authMiddleware = require('./../Controller/authController')
+const Account = require('./../Model/bankModel')
 
 
 const Router = express.Router();
@@ -49,6 +50,11 @@ Router.post("/signup", async (req, res) => {
     })
     const userId = user._id;
 
+    await Account.create({
+        userId,
+        balance:1+Math.random()*1000
+    })
+
     const token = jwt.sign({
         userId
     }, process.env.JWT_SECRET);
@@ -57,7 +63,7 @@ Router.post("/signup", async (req, res) => {
         message: "User created successfully",
         token: token,
         data:{
-            user
+            user,Account
         }
     })
 })
@@ -73,6 +79,8 @@ Router.post('/login', async (req, res) => {
 
     try {
         const user = await User.findOne({ email }).select('+password');
+        const correct =await user.correctPassword(password,user.password)
+        console.log(correct);
 
         if (!user) {
             return res.status(401).json({
@@ -82,7 +90,7 @@ Router.post('/login', async (req, res) => {
         }
 
         
-        if (password !== user.password) {
+        if (!correct) {
             return res.status(401).json({
                 status: "Failed",
                 message: "Invalid password"
@@ -102,6 +110,7 @@ Router.post('/login', async (req, res) => {
         });
     }
 });
+
 Router.post('/update',authMiddleware,async(req,res)=>{
     const {password,firstName,lastName} = req.body
     const { success } = updateSchema.safeParse(req.body)
@@ -117,6 +126,29 @@ Router.post('/update',authMiddleware,async(req,res)=>{
         message:"Updated successfully"
     })
 
+})
+
+Router.get('/getUser',async (req,res)=>{
+    const filters = req.query.filter || "";
+    const users = await User.find({
+        $or:[{
+                firstName:{
+                    "$regex":filters
+                }
+            },{
+                lastName:{
+                    "$regex":filters
+                }
+            }]
+    })
+    res.json({
+        user:users.map(user=>({
+            email:user.email,
+            firstName:user.firstName,
+            lastName:user.lastName,
+            _id:user._id
+        }))
+    })
 })
 
 module.exports = Router;
